@@ -454,7 +454,7 @@
                     </div>
                     
                     <div class="form-group">
-                        <label for="niveau">Ton niveau en rando/trail *</label>
+                        <label for="">Ton  en rando/trail *</label>
                         <select id="niveau" required>
                             <option value="">-- Choisir --</option>
                             <option value="debutant">Débutant (sorties occasionnelles)</option>
@@ -588,12 +588,16 @@
                 document.getElementById('successMessage').style.display = 'none';
             }, 5000);
             
-            // ICI : Intégrer ton service de collecte d'emails
-            // Exemples :
-            // - Webhook Tally.so
-            // - API Convertkit
-            // - Google Sheets via Apps Script
-            // - Ton propre backend Node.js
+            const email = encodeURIComponent(document.getElementById('email').value);
+            const prenom = encodeURIComponent(document.getElementById('prenom').value);
+            const ville = encodeURIComponent(document.getElementById('ville').value);
+            const niveau = encodeURIComponent(document.getElementById('niveau').value);
+            const activites = encodeURIComponent(document.getElementById('activites').value);
+            
+            const tallyURL = 'https://tally.so/r/0QrVeB';
+
+            // Rediriger vers Tally
+            window.location.href = `${tallyURL}?email=${email}&prenom=${prenom}`;
         });
         
         // Smooth scroll pour le CTA
@@ -605,4 +609,5 @@
 </body>
 
 </html>
+
 
