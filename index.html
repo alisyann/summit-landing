@@ -331,6 +331,23 @@
             font-weight: 600;
         }
         
+        /* Messages d'erreur */
+        .error-message {
+            background: #fee;
+            color: #c00;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #c00;
+            display: none;
+            font-weight: 600;
+        }
+        
+        .form-group input.error,
+        .form-group select.error {
+            border-color: #c00;
+        }
+        
         @media (max-width: 768px) {
             .hero h1 {
                 font-size: 2em;
@@ -435,6 +452,7 @@
                 <div id="successMessage" class="success-message">
                     ✅ Merci ! Tu es inscrit(e) à la liste d'attente. On te contacte dès le lancement !
                 </div>
+                <div id="errorMessage" class="error-message"></div>
                 
                 <h2>🚀 Sois parmi les premiers !</h2>
                 <form id="signupForm">
@@ -447,7 +465,10 @@
                         <label for="prenom">Prénom *</label>
                         <input type="text" id="prenom" required placeholder="Marie">
                     </div>
-                    
+                    <div style="position: absolute; left: -9999px; opacity: 0; height: 0; overflow: hidden;" aria-hidden="true">
+                        <label for="website">Website</label>
+                        <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+                    </div>
                     <div class="form-group">
                         <label for="ville">Ville / Région *</label>
                         <input type="text" id="ville" required placeholder="Lyon, Grenoble, Chamonix...">
@@ -559,21 +580,108 @@
 document.getElementById('signupForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     
-    // Désactiver le bouton pendant l'envoi
+    // 1. Récupération des données
+    const email = document.getElementById('email').value.trim();
+    const prenom = document.getElementById('prenom').value.trim();
+    const ville = document.getElementById('ville').value.trim();
+    const niveau = document.getElementById('niveau').value;
+    const activites = Array.from(document.getElementById('activites').selectedOptions)
+        .map(opt => opt.value);
+
+    // 2. HONEYPOT CHECK (TOUT EN HAUT DES VALIDATIONS)
+    const honeypot = document.getElementById('website').value;
+    if (honeypot) {
+        // Bot détecté ! Ne rien dire, faire semblant que ça marche
+        console.log('🤖 Bot détecté via honeypot');
+        
+        // Afficher faux succès pour ne pas alerter le bot
+        document.getElementById('successMessage').style.display = 'block';
+        this.reset();
+        
+        setTimeout(() => {
+            document.getElementById('successMessage').style.display = 'none';
+        }, 5000);
+        
+        return; // STOP ICI, ne pas envoyer les données
+    }
+
+    // Fonction helper pour afficher les erreurs
+    function showError(message) {
+        const errorDiv = document.getElementById('errorMessage');
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+        errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        setTimeout(() => {
+            errorDiv.style.display = 'none';
+        }, 5000);
+    }
+    
+    // 2. Validation email (regex stricte)
+    const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(email)) {
+        showError('❌ Email invalide. Exemple: marie@example.com');
+        return;
+    }
+    
+    // 3. Bloquer emails temporaires/jetables
+    const disposableDomains = ['tempmail.com', 'guerrillamail.com', '10minutemail.com', 
+                                'throwaway.email', 'mailinator.com', 'trashmail.com'];
+    const emailDomain = email.split('@')[1].toLowerCase();
+    if (disposableDomains.includes(emailDomain)) {
+        showError('❌ Les emails jetables ne sont pas acceptés. Utilise ton vrai email !');
+        return;
+    }
+    
+    // 4. Validation prénom (au moins 2 caractères, pas de chiffres)
+    if (prenom.length < 2 || /\d/.test(prenom)) {
+        showError('❌ Prénom invalide. Entre ton vrai prénom (minimum 2 lettres).');
+        return;
+    }
+    
+    // 5. Validation ville (au moins 2 caractères)
+    if (ville.length < 2) {
+        showError('❌ Ville invalide. Entre ta ville ou région.');
+        return;
+    }
+    
+    // 6. Validation niveau sélectionné
+    if (!niveau) {
+        showError('❌ Merci de sélectionner ton niveau en rando/trail.');
+        return;
+    }
+    
+    // 7. Protection anti-spam : limite de temps (honeypot temporel)
+    const formLoadTime = window.formLoadTime || Date.now();
+    const submissionTime = Date.now();
+    const timeDiff = (submissionTime - formLoadTime) / 1000; // en secondes
+    
+    if (timeDiff < 3) {
+        // Soumission trop rapide = probablement un bot
+        console.log('Soumission suspecte (trop rapide)');
+        return;
+    }
+    
+    // 8. Vérifier doublon email (localStorage)
+    const submittedEmails = JSON.parse(localStorage.getItem('submittedEmails') || '[]');
+    if (submittedEmails.includes(email)) {
+        showError('✅ Tu es déjà inscrit(e) avec cet email !');
+        return;
+    }
+    
+    // --- FIN VALIDATIONS, DÉBUT ENVOI ---
+    
     const submitBtn = this.querySelector('.submit-btn');
     const originalText = submitBtn.textContent;
     submitBtn.textContent = '⏳ Envoi en cours...';
     submitBtn.disabled = true;
     
-    // Récupération des données
     const formData = {
-        email: document.getElementById('email').value,
-        prenom: document.getElementById('prenom').value,
-        ville: document.getElementById('ville').value,
-        niveau: document.getElementById('niveau').value,
-        activites: Array.from(document.getElementById('activites').selectedOptions)
-            .map(opt => opt.value)
-            .join(', ')
+        email: email,
+        prenom: prenom,
+        ville: ville,
+        niveau: niveau,
+        activites: activites.join(', ')
     };
     
     try {
@@ -587,24 +695,25 @@ document.getElementById('signupForm').addEventListener('submit', async function(
             body: JSON.stringify(formData)
         });
         
-        // Note: mode 'no-cors' ne permet pas de lire la réponse,
-        // mais l'envoi fonctionne quand même
+        // Sauvegarder l'email pour éviter les doublons
+        submittedEmails.push(email);
+        localStorage.setItem('submittedEmails', JSON.stringify(submittedEmails));
         
-        // Afficher le message de succès
+        // Afficher succès
         document.getElementById('successMessage').style.display = 'block';
         
-        // Incrémenter le compteur
+        // Incrémenter compteur
         const counter = document.getElementById('counter');
         counter.textContent = parseInt(counter.textContent) + 1;
         
-        // Réinitialiser le formulaire
+        // Reset formulaire
         this.reset();
         
-        // Réactiver le bouton
+        // Réactiver bouton
         submitBtn.textContent = originalText;
         submitBtn.disabled = false;
         
-        // Scroll vers le message
+        // Scroll vers message
         document.getElementById('successMessage').scrollIntoView({ 
             behavior: 'smooth', 
             block: 'center' 
@@ -617,13 +726,15 @@ document.getElementById('signupForm').addEventListener('submit', async function(
         
     } catch (error) {
         console.error('Erreur:', error);
-        alert('Erreur lors de l\'inscription. Merci de réessayer ou contacte-nous directement.');
+        showError('❌ Erreur lors de l\'inscription. Merci de réessayer.');
         
-        // Réactiver le bouton
         submitBtn.textContent = originalText;
         submitBtn.disabled = false;
     }
 });
+
+// Initialiser le timestamp au chargement (anti-bot)
+window.formLoadTime = Date.now();
         
         // Smooth scroll pour le CTA
         document.querySelector('a[href="#signup"]').addEventListener('click', function(e) {
@@ -634,6 +745,7 @@ document.getElementById('signupForm').addEventListener('submit', async function(
 </body>
 
 </html>
+
 
 
 
