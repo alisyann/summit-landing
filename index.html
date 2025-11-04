@@ -579,6 +579,15 @@
         // Gestion du formulaire
 document.getElementById('signupForm').addEventListener('submit', async function(e) {
     e.preventDefault();
+
+    const email = document.getElementById('email').value.trim();
+    
+    // Validation email
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.valid) {
+        alert(emailValidation.error);
+        return;
+    }
     
     // 1. Récupération des données
     const email = document.getElementById('email').value.trim();
@@ -617,41 +626,103 @@ document.getElementById('signupForm').addEventListener('submit', async function(
         }, 5000);
     }
     
-    // 2. Validation email (regex stricte)
+    // === VALIDATION EMAIL STRICTE ===
+function validateEmail(email) {
+    // 1. Format de base
     const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!emailRegex.test(email)) {
-        showError('❌ Email invalide. Exemple: marie@example.com');
-        return;
+        return { valid: false, error: '❌ Format email invalide. Exemple: marie@gmail.com' };
     }
     
-    // 3. Bloquer emails temporaires/jetables
-    const disposableDomains = ['tempmail.com', 'guerrillamail.com', '10minutemail.com', 
-                                'throwaway.email', 'mailinator.com', 'trashmail.com'];
-    const emailDomain = email.split('@')[1].toLowerCase();
-    if (disposableDomains.includes(emailDomain)) {
-        showError('❌ Les emails jetables ne sont pas acceptés. Utilise ton vrai email !');
-        return;
+    // 2. Pas de points consécutifs
+    if (email.includes('..') || email.startsWith('.') || email.endsWith('.')) {
+        return { valid: false, error: '❌ Email invalide (mauvais placement des points)' };
     }
     
-    // 4. Validation prénom (au moins 2 caractères, pas de chiffres)
+    // 3. Vérifier le domaine
+    const parts = email.split('@');
+    if (parts.length !== 2) {
+        return { valid: false, error: '❌ Email doit contenir un seul @' };
+    }
+    
+    const domain = parts[1].toLowerCase();
+    const domainParts = domain.split('.');
+    
+    // Le domaine doit avoir au moins 2 parties (example.com)
+    if (domainParts.length < 2) {
+        return { valid: false, error: '❌ Domaine invalide. Exemple: gmail.com' };
+    }
+    
+    // L'extension (TLD) doit avoir au moins 2 caractères
+    const tld = domainParts[domainParts.length - 1];
+    if (tld.length < 2) {
+        return { valid: false, error: '❌ Extension de domaine invalide. Exemple: .com, .fr' };
+    }
+    
+    // 4. Vérifier extensions valides (liste des TLD courants)
+    const validTLDs = [
+        'com', 'fr', 'net', 'org', 'eu', 'de', 'uk', 'co',
+        'io', 'app', 'dev', 'tech', 'info', 'biz', 'me',
+        'ch', 'be', 'ca', 'us', 'es', 'it', 'nl', 'se',
+        'no', 'dk', 'fi', 'pl', 'ru', 'jp', 'cn', 'au'
+    ];
+    
+    if (!validTLDs.includes(tld)) {
+        return { valid: false, error: '❌ Extension de domaine non reconnue' };
+    }
+    
+    // 5. Bloquer emails jetables
+    const disposableDomains = [
+        'tempmail.com', 'guerrillamail.com', '10minutemail.com',
+        'throwaway.email', 'mailinator.com', 'trashmail.com',
+        'yopmail.com', 'maildrop.cc', 'temp-mail.org',
+        'getnada.com', 'fakeinbox.com', 'sharklasers.com'
+    ];
+    
+    if (disposableDomains.includes(domain)) {
+        return { valid: false, error: '❌ Les emails jetables ne sont pas acceptés' };
+    }
+    
+    // 6. Vérifier domaines courants mal orthographiés
+    const commonTypos = {
+        'gmial.com': 'gmail.com',
+        'gmai.com': 'gmail.com',
+        'gmailc.om': 'gmail.com',
+        'outloo.com': 'outlook.com',
+        'outlok.com': 'outlook.com',
+        'yahooo.com': 'yahoo.com',
+        'yaho.com': 'yahoo.com'
+    };
+    
+    if (commonTypos[domain]) {
+        return { 
+            valid: false, 
+            error: `❌ Vouliez-vous dire ${commonTypos[domain]} ?` 
+        };
+    }
+    
+    return { valid: true };
+}
+    
+    // 6. Validation prénom (au moins 2 caractères, pas de chiffres)
     if (prenom.length < 2 || /\d/.test(prenom)) {
         showError('❌ Prénom invalide. Entre ton vrai prénom (minimum 2 lettres).');
         return;
     }
     
-    // 5. Validation ville (au moins 2 caractères)
+    // 7. Validation ville (au moins 2 caractères)
     if (ville.length < 2) {
         showError('❌ Ville invalide. Entre ta ville ou région.');
         return;
     }
     
-    // 6. Validation niveau sélectionné
+    // 8. Validation niveau sélectionné
     if (!niveau) {
         showError('❌ Merci de sélectionner ton niveau en rando/trail.');
         return;
     }
     
-    // 7. Protection anti-spam : limite de temps (honeypot temporel)
+    // 9. Protection anti-spam : limite de temps (honeypot temporel)
     const formLoadTime = window.formLoadTime || Date.now();
     const submissionTime = Date.now();
     const timeDiff = (submissionTime - formLoadTime) / 1000; // en secondes
@@ -662,7 +733,7 @@ document.getElementById('signupForm').addEventListener('submit', async function(
         return;
     }
     
-    // 8. Vérifier doublon email (localStorage)
+    // 10. Vérifier doublon email (localStorage)
     const submittedEmails = JSON.parse(localStorage.getItem('submittedEmails') || '[]');
     if (submittedEmails.includes(email)) {
         showError('✅ Tu es déjà inscrit(e) avec cet email !');
@@ -745,6 +816,7 @@ window.formLoadTime = Date.now();
 </body>
 
 </html>
+
 
 
 
