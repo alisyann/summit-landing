@@ -42,6 +42,32 @@
             right: -50px;
             opacity: 0.1;
         }
+        .hero-logo {
+            max-width: 120px;
+            height: auto;
+            margin-bottom: 25px;
+            filter: drop-shadow(0 4px 10px rgba(0,0,0,0.15));
+            animation: fadeInDown 0.8s ease-out;
+        }
+        
+        /* Animation d'entrée du logo */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Responsive : logo plus petit sur mobile */
+        @media (max-width: 768px) {
+            .hero-logo {
+                max-width: 80px;
+            }
+        }
         
         .hero h1 {
             font-size: 3em;
@@ -811,6 +837,7 @@
 </body>
 
 </html>
+
 
 
 
